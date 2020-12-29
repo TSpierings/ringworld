@@ -9,19 +9,21 @@ public class Block
   Vector3 localUp = Vector3.up;
   Vector3 axisA;
   Vector3 axisB;
-  int blockIndex;
+  int blockCircumferenceIndex;
+  int blockWidthIndex;
   double r;
   NoiseSettings noiseSettings;
   WorldSettings worldSettings;
   Noise noise;
 
-  public Block(Mesh mesh, int blockIndex, double r, WorldSettings worldSettings, NoiseSettings noiseSettings)
+  public Block(Mesh mesh, int blockCircumferenceIndex, int blockWidthIndex, double r, WorldSettings worldSettings, NoiseSettings noiseSettings)
   {
     this.mesh = mesh;
-    this.blockIndex = blockIndex;
+    this.blockCircumferenceIndex = blockCircumferenceIndex;
+    this.blockWidthIndex = blockWidthIndex;
     this.r = r;
     this.worldSettings = worldSettings;
-    this.noiseSettings = noiseSettings;    
+    this.noiseSettings = noiseSettings;
 
     axisA = new Vector3(localUp.y, localUp.z, localUp.x);
     axisB = Vector3.Cross(localUp, axisA);
@@ -31,7 +33,7 @@ public class Block
   public void ConstructMesh()
   {
     // Converted units
-    double size = (double)this.worldSettings.blocks;
+    double size = (double)this.worldSettings.circumferenceInBlocks;
     double vertexCount = (double)this.worldSettings.tilesPerBlock + 1;
     double tiles = (double)this.worldSettings.tilesPerBlock;
     int tilesPerBlock = this.worldSettings.tilesPerBlock;
@@ -41,12 +43,12 @@ public class Block
     int triIndex = 0;
 
     // Start of the block in the ring.
-    double origin = ((double)blockIndex / size) * (Math.PI * 2);
+    double origin = ((double)blockCircumferenceIndex / size) * (Math.PI * 2);
 
     for (int z = 0; z < tilesPerBlock + 1; z++)
     {
       for (int x = 0; x < tilesPerBlock + 1; x++)
-      {        
+      {
         // Offset from origin for this tile.
         double offset = (x / tiles) * (1 / size) * (Math.PI * 2);
         double radians = origin + offset;
@@ -60,7 +62,7 @@ public class Block
         double height = noise.Evaluate(new Vector3(
           pointInRing.x,
           pointInRing.y,
-          (float)((z / tiles) + noiseSettings.offsetZ)))
+          (float)(((z + this.blockWidthIndex * tilesPerBlock) / tiles) + noiseSettings.offsetZ)))
           * noiseSettings.weight;
 
         // absolute position in space.
@@ -68,7 +70,7 @@ public class Block
         float originY = (float)((this.r + height) * Math.Sin(radians));
 
         int i = x + z * (tilesPerBlock + 1);
-        vertices[i] = -new Vector3(originX, originY, (float)z);
+        vertices[i] = -new Vector3(originX, originY, (float)z + this.blockWidthIndex * tilesPerBlock);
 
         if (x != tilesPerBlock && z != tilesPerBlock)
         {
@@ -83,7 +85,7 @@ public class Block
         }
       }
     }
-    
+
     mesh.Clear();
     mesh.vertices = vertices;
     mesh.triangles = triangles;

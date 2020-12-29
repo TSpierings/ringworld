@@ -2,51 +2,111 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using UnityEditor;
 
+[ExecuteInEditMode]
 public class World : MonoBehaviour
 {
-    public WorldSettings worldSettings;
-    public NoiseSettings noiseSettings;
+  public WorldSettings worldSettings;
+  public NoiseSettings noiseSettings;
+  Block[] blocks;
 
-    [SerializeField, HideInInspector]
-    MeshFilter[] meshFilters;
-    Block[] blocks;
-     
-	private void OnValidate()
-	{
-        Initialize();
-        GenerateMesh();
-	}
+  [SerializeField, HideInInspector]
+  GameObject[] blockObjects;
 
-	void Initialize()
+  private bool validated = false;
+
+  private void OnValidate()
+  {
+    validated = true;
+  }
+
+  void Update()
+  {
+    if (validated)
     {
-        if (meshFilters == null || meshFilters.Length == 0)
-        {
-            meshFilters = new MeshFilter[this.worldSettings.blocks];
-        }
-        blocks = new Block[this.worldSettings.blocks];
+      validated = false;
 
-        double r = (this.worldSettings.blocks * this.worldSettings.tilesPerBlock) / (Math.PI * 2);
+      foo();
+      Initialize();
+      GenerateMesh();
+    }
+  }
 
-        for (int x = 0; x < this.worldSettings.blocks; x++) {
-            if (meshFilters[x] == null) {
-                GameObject meshObj = new GameObject("mesh");
-                meshObj.transform.parent = transform;
-
-                meshObj.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("Standard"));
-                meshFilters[x] = meshObj.AddComponent<MeshFilter>();
-                meshFilters[x].sharedMesh = new Mesh();
-            }
-
-            blocks[x] = new Block(meshFilters[x].sharedMesh, x, r, this.worldSettings, this.noiseSettings);
-        }
+  void foo()
+  {
+    if (blockObjects == null && this.worldSettings.circumferenceInBlocks > 0)
+    {
+      blockObjects = new GameObject[this.worldSettings.circumferenceInBlocks * this.worldSettings.widthInBlocks];
     }
 
-    void GenerateMesh()
+    if (blockObjects.Length != worldSettings.circumferenceInBlocks * this.worldSettings.widthInBlocks)
     {
-        foreach (Block face in blocks)
+      foreach (var obj in blockObjects)
+      {
+        if (obj == null)
         {
-            face.ConstructMesh();
+          continue;
         }
+
+        DestroyImmediate(obj);
+      }
+
+      if (this.worldSettings.circumferenceInBlocks > 0)
+      {
+        blockObjects = new GameObject[this.worldSettings.circumferenceInBlocks * this.worldSettings.widthInBlocks];
+      }
     }
+  }
+
+  void Initialize()
+  {
+    if (this.worldSettings.circumferenceInBlocks == 0)
+    {
+      return;
+    }
+
+    blocks = new Block[this.worldSettings.circumferenceInBlocks * this.worldSettings.widthInBlocks];
+
+    double r = (this.worldSettings.circumferenceInBlocks * this.worldSettings.tilesPerBlock) / (Math.PI * 2);
+
+    for (int circumferenceIndex = 0; circumferenceIndex < this.worldSettings.circumferenceInBlocks; circumferenceIndex++)
+    {
+      for (int widthIndex = 0; widthIndex < this.worldSettings.widthInBlocks; widthIndex++)
+      {
+        int index = (circumferenceIndex * this.worldSettings.widthInBlocks) + widthIndex;
+
+        if (blockObjects[index] == null)
+        {
+          GameObject meshObj = new GameObject("mesh");
+          blockObjects[index] = meshObj;
+
+          meshObj.transform.SetParent(transform);
+          meshObj.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("Standard"));
+          MeshFilter meshFilter = meshObj.AddComponent<MeshFilter>();
+          meshFilter.sharedMesh = new Mesh();
+        }
+        
+        blocks[index] = new Block(blockObjects[index].GetComponent<MeshFilter>().sharedMesh, circumferenceIndex, widthIndex, r, this.worldSettings, this.noiseSettings);
+      }
+    }
+  }
+
+  void GenerateMesh()
+  {
+    if (this.worldSettings.circumferenceInBlocks == 0)
+    {
+      return;
+    }
+
+    foreach (Block block in blocks)
+    {
+      if (block == null)
+      {
+        continue;
+      }
+
+      block.ConstructMesh();
+    }
+  }
 }

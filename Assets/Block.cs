@@ -70,6 +70,29 @@ public class Block
     mesh.vertices = vertices;
     mesh.triangles = triangles;
     mesh.RecalculateNormals();
+
+    Vector3[] normals = mesh.normals;
+
+    for (int z = 0; z < tilesPerBlock + 1; z++)
+    {
+      for (int x = 0; x < tilesPerBlock + 1; x++)
+      {
+        int i = x + z * (tilesPerBlock + 1);
+        if (x == 0 || x == tilesPerBlock || z == 0 || z == tilesPerBlock)
+        {
+          var up = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
+          var right = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
+          var down = GetCoordinate(x, z - 1, tiles, size, origin, tilesPerBlock);
+          var left = GetCoordinate(x - 1, z, tiles, size, origin, tilesPerBlock);
+
+          normals[i] = -(Vector3.Cross(up, right) + Vector3.Cross(right, down) + Vector3.Cross(down, left) + Vector3.Cross(left, up)).normalized;
+        }
+      }
+    }
+
+    mesh.normals = normals;
+  }
+
   private Vector3 GetCoordinate(int x, int z, double tiles, double size, double origin, int tilesPerBlock)
   {
     // Offset from origin for this tile.

@@ -49,28 +49,8 @@ public class Block
     {
       for (int x = 0; x < tilesPerBlock + 1; x++)
       {
-        // Offset from origin for this tile.
-        double offset = (x / tiles) * (1 / size) * (Math.PI * 2);
-        double radians = origin + offset;
-
-        Vector2 pointInRing = new Vector2(
-          (float)Math.Cos(radians),
-          (float)Math.Sin(radians)
-        );
-
-        // Noise functions
-        double height = noise.Evaluate(new Vector3(
-          pointInRing.x,
-          pointInRing.y,
-          (float)((((z + this.blockWidthIndex * tilesPerBlock) / tiles) + noiseSettings.offsetZ) * noiseSettings.noiseScale)))
-          * noiseSettings.weight;
-
-        // absolute position in space.
-        float originX = (float)((this.r + height) * Math.Cos(radians));
-        float originY = (float)((this.r + height) * Math.Sin(radians));
-
         int i = x + z * (tilesPerBlock + 1);
-        vertices[i] = -new Vector3(originX, originY, (float)z + this.blockWidthIndex * tilesPerBlock);
+        vertices[i] = GetCoordinate(x, z, tiles, size, origin, tilesPerBlock);
 
         if (x != tilesPerBlock && z != tilesPerBlock)
         {
@@ -90,5 +70,28 @@ public class Block
     mesh.vertices = vertices;
     mesh.triangles = triangles;
     mesh.RecalculateNormals();
+  private Vector3 GetCoordinate(int x, int z, double tiles, double size, double origin, int tilesPerBlock)
+  {
+    // Offset from origin for this tile.
+    double offset = (x / tiles) * (1 / size) * (Math.PI * 2);
+    double radians = origin + offset;
+
+    Vector2 pointInRing = new Vector2(
+      (float)Math.Cos(radians),
+      (float)Math.Sin(radians)
+    );
+
+    // Noise functions
+    double height = noise.Evaluate(new Vector3(
+      pointInRing.x,
+      pointInRing.y,
+      (float)((((z + this.blockWidthIndex * tilesPerBlock) / tiles) + noiseSettings.offsetZ) * noiseSettings.noiseScale)))
+      * noiseSettings.weight;
+
+    // absolute position in space.
+    float originX = (float)((this.r + height) * Math.Cos(radians));
+    float originY = (float)((this.r + height) * Math.Sin(radians));
+
+    return -new Vector3(originX, originY, (float)z + this.blockWidthIndex * tilesPerBlock);
   }
 }

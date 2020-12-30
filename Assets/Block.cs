@@ -62,7 +62,7 @@ public class Block
         double height = noise.Evaluate(new Vector3(
           pointInRing.x,
           pointInRing.y,
-          (float)(((z + this.blockWidthIndex * tilesPerBlock) / tiles) + noiseSettings.offsetZ)))
+          (float)((((z + this.blockWidthIndex * tilesPerBlock) / tiles) + noiseSettings.offsetZ) * noiseSettings.noiseScale)))
           * noiseSettings.weight;
 
         // absolute position in space.

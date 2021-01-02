@@ -1,18 +1,18 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using System;
-using UnityEditor;
 
 [ExecuteInEditMode]
 public class World : MonoBehaviour
 {
   public WorldSettings worldSettings;
-  public NoiseSettings noiseSettings;
+  public NoiseSettingsEditor noiseSettingsEditor;
   Block[] blocks;
 
   [SerializeField, HideInInspector]
   GameObject[] blockObjects;
+
+  [HideInInspector]
+  public bool noiseSettingsFoldout;
 
   private bool validated = false;
 
@@ -26,14 +26,18 @@ public class World : MonoBehaviour
     if (validated)
     {
       validated = false;
-
-      foo();
-      Initialize();
-      GenerateMesh();
+      CreateWorld();
     }
   }
 
-  void foo()
+  public void CreateWorld()
+  {
+    CreateBlocks();
+    Initialize();
+    GenerateMesh();
+  }
+
+  private void CreateBlocks()
   {
     if (blockObjects == null && this.worldSettings.circumferenceInBlocks > 0)
     {
@@ -59,7 +63,7 @@ public class World : MonoBehaviour
     }
   }
 
-  void Initialize()
+  private void Initialize()
   {
     if (this.worldSettings.circumferenceInBlocks == 0)
     {
@@ -86,13 +90,13 @@ public class World : MonoBehaviour
           MeshFilter meshFilter = meshObj.AddComponent<MeshFilter>();
           meshFilter.sharedMesh = new Mesh();
         }
-        
-        blocks[index] = new Block(blockObjects[index].GetComponent<MeshFilter>().sharedMesh, circumferenceIndex, widthIndex, r, this.worldSettings, this.noiseSettings);
+
+        blocks[index] = new Block(blockObjects[index].GetComponent<MeshFilter>().sharedMesh, circumferenceIndex, widthIndex, r, this.worldSettings, this.noiseSettingsEditor);
       }
     }
   }
 
-  void GenerateMesh()
+  private void GenerateMesh()
   {
     if (this.worldSettings.circumferenceInBlocks == 0)
     {

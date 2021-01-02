@@ -12,22 +12,20 @@ public class Block
   int blockCircumferenceIndex;
   int blockWidthIndex;
   double r;
-  NoiseSettings noiseSettings;
+  NoiseSettingsEditor noiseSettingsEditor;
   WorldSettings worldSettings;
-  Noise noise;
 
-  public Block(Mesh mesh, int blockCircumferenceIndex, int blockWidthIndex, double r, WorldSettings worldSettings, NoiseSettings noiseSettings)
+  public Block(Mesh mesh, int blockCircumferenceIndex, int blockWidthIndex, double r, WorldSettings worldSettings, NoiseSettingsEditor noiseSettingsEditor)
   {
     this.mesh = mesh;
     this.blockCircumferenceIndex = blockCircumferenceIndex;
     this.blockWidthIndex = blockWidthIndex;
     this.r = r;
     this.worldSettings = worldSettings;
-    this.noiseSettings = noiseSettings;
+    this.noiseSettingsEditor = noiseSettingsEditor;
 
     axisA = new Vector3(localUp.y, localUp.z, localUp.x);
     axisB = Vector3.Cross(localUp, axisA);
-    noise = new Noise();
   }
 
   public void ConstructMesh()
@@ -38,6 +36,7 @@ public class Block
     double tiles = (double)this.worldSettings.tilesPerBlock;
     int tilesPerBlock = this.worldSettings.tilesPerBlock;
 
+    /* Smooth shading
     Vector3[] vertices = new Vector3[(int)((tilesPerBlock + 1) * (tilesPerBlock + 1))];
     int[] triangles = new int[(int)(tilesPerBlock * tilesPerBlock * 6)];
     int triIndex = 0;
@@ -64,6 +63,37 @@ public class Block
           triIndex += 6;
         }
       }
+    }*/
+
+    // Hard shading
+    Vector3[] vertices = new Vector3[(tilesPerBlock + 1) * (tilesPerBlock + 1) * 6];
+    int[] triangles = new int[(tilesPerBlock * tilesPerBlock) * 6];
+
+    double origin = ((double)blockCircumferenceIndex / size) * (Math.PI * 2);
+
+    for (int z = 0; z < tilesPerBlock; z++)
+    {
+      for (int x = 0; x < tilesPerBlock; x++)
+      {
+        int i = x + z * (tilesPerBlock);
+
+        vertices[i * 6] = GetCoordinate(x, z, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 1] = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 2] = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
+
+        
+        vertices[i * 6 + 3] = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 4] = GetCoordinate(x + 1, z + 1, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 5] = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
+
+        triangles[i * 6] = i * 6;
+        triangles[i * 6 + 1] = i * 6 + 1;
+        triangles[i * 6 + 2] = i * 6 + 2;
+
+        triangles[i * 6 + 3] = i * 6 + 3;
+        triangles[i * 6 + 4] = i * 6 + 4;
+        triangles[i * 6 + 5] = i * 6 + 5;
+      }
     }
 
     mesh.Clear();
@@ -72,6 +102,16 @@ public class Block
     mesh.RecalculateNormals();
 
     Vector3[] normals = mesh.normals;
+
+    for (int i = 0; i < mesh.vertices.Length; i+=3) {
+      // Debug.DrawLine(mesh.vertices[i], mesh.vertices[i] + mesh.normals[i]);
+
+      Vector3 middle = (mesh.vertices[i] + mesh.vertices[i + 1] + mesh.vertices[i + 2]) / 3;
+
+      // Debug.DrawLine(middle, middle + mesh.normals[i]);
+      // Debug.DrawLine(middle, middle + mesh.normals[i + 1]);
+      // Debug.DrawLine(middle, middle + mesh.normals[i + 2]);
+    }
 
     for (int z = 0; z < tilesPerBlock + 1; z++)
     {
@@ -85,12 +125,22 @@ public class Block
           var down = GetCoordinate(x, z - 1, tiles, size, origin, tilesPerBlock);
           var left = GetCoordinate(x - 1, z, tiles, size, origin, tilesPerBlock);
 
-          normals[i] = -(Vector3.Cross(up, right) + Vector3.Cross(right, down) + Vector3.Cross(down, left) + Vector3.Cross(left, up)).normalized;
+          var leftUp = GetCoordinate(x - 1, z + 1, tiles, size, origin, tilesPerBlock);
+          var rightDown = GetCoordinate(x + 1, z - 1, tiles, size, origin, tilesPerBlock);
+
+          normals[i] = -(
+            Vector3.Cross(up, right) +
+            Vector3.Cross(right, rightDown) +
+            Vector3.Cross(rightDown, down) +
+            Vector3.Cross(down, left) +
+            Vector3.Cross(left, leftUp) +
+            Vector3.Cross(leftUp, up)
+            ).normalized;
         }
       }
     }
 
-    mesh.normals = normals;
+    //mesh.normals = normals;
   }
 
   private Vector3 GetCoordinate(int x, int z, double tiles, double size, double origin, int tilesPerBlock)
@@ -104,17 +154,52 @@ public class Block
       (float)Math.Sin(radians)
     );
 
-    // Noise functions
-    Vector3 noiseVector = new Vector3(
+    Vector3 pointInSpace = new Vector3(
       (float)(pointInRing.x * this.r),
       (float)(pointInRing.y * this.r),
-      (float)(z + this.blockWidthIndex * tilesPerBlock))  * (float)noiseSettings.noiseScale;
+      (float)(z + this.blockWidthIndex * tilesPerBlock));
 
-    double height = noise.Evaluate(noiseVector) * noiseSettings.weight;
+
+
+    double firstLayerHeight = 0;
+    double height = 0;
+
+    if (noiseSettingsEditor.noiseSettings.Length > 0)
+    {
+      firstLayerHeight = noiseSettingsEditor.noiseSettings[0].getValue(pointInSpace);
+      if (noiseSettingsEditor.noiseSettings[0].enabled)
+      {
+        height = firstLayerHeight;
+      }
+    }
+
+    for (int i = 1; i < noiseSettingsEditor.noiseSettings.Length; i++)
+    {
+      if (!noiseSettingsEditor.noiseSettings[i].enabled)
+      {
+        continue;
+      }
+
+      double mask = noiseSettingsEditor.noiseSettings[i].useFirstLayerAsMask ? firstLayerHeight : 1;
+      height += noiseSettingsEditor.noiseSettings[i].getValue(pointInSpace) * mask;
+
+    }
+
+    // foreach(var layer in noiseSettingsEditor.noiseSettings) {      
+    //   height += layer.getValue(pointInSpace);
+    // }
+
+    // // Noise functions
+    // Vector3 noiseVector = new Vector3(
+    //   (float)(pointInRing.x * this.r),
+    //   (float)(pointInRing.y * this.r),
+    //   (float)(z + this.blockWidthIndex * tilesPerBlock))  * (float)noiseSettings.noiseScale;
+
+    // double height = noise.Evaluate(noiseVector) * noiseSettings.weight;
 
     // absolute position in space.
-    float originX = (float)((this.r + height) * Math.Cos(radians));
-    float originY = (float)((this.r + height) * Math.Sin(radians));
+    float originX = (float)((this.r - height) * Math.Cos(radians));
+    float originY = (float)((this.r - height) * Math.Sin(radians));
 
     return -new Vector3(originX, originY, (float)z + this.blockWidthIndex * tilesPerBlock);
   }

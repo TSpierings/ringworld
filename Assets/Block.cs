@@ -105,11 +105,12 @@ public class Block
     );
 
     // Noise functions
-    double height = noise.Evaluate(new Vector3(
-      pointInRing.x,
-      pointInRing.y,
-      (float)((((z + this.blockWidthIndex * tilesPerBlock) / tiles) + noiseSettings.offsetZ) * noiseSettings.noiseScale)))
-      * noiseSettings.weight;
+    Vector3 noiseVector = new Vector3(
+      (float)(pointInRing.x * this.r),
+      (float)(pointInRing.y * this.r),
+      (float)(z + this.blockWidthIndex * tilesPerBlock))  * (float)noiseSettings.noiseScale;
+
+    double height = noise.Evaluate(noiseVector) * noiseSettings.weight;
 
     // absolute position in space.
     float originX = (float)((this.r + height) * Math.Cos(radians));

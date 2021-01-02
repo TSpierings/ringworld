@@ -5,7 +5,7 @@ using UnityEngine;
 [System.Serializable]
 public class NoiseSettings
 {
-    [Range(0,10)]
+    [Range(0,1)]
     public double noiseScale = 0;
     [Range(0,1)]
     public double offsetZ = 0;

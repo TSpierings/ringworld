@@ -68,22 +68,27 @@ public class Block
 
   public (Vector3[], int[]) HardShading(int tilesPerBlock, double size, double tiles, double origin)
   {
-    Vector3[] vertices = new Vector3[(tilesPerBlock + 1) * (tilesPerBlock + 1) * 6];
-    int[] triangles = new int[(tilesPerBlock * tilesPerBlock) * 6];
+    int verticesPerRow = (int)(tilesPerBlock * worldSettings.resolution) + 1;
+    int trianglesPerRow = (int)(tilesPerBlock * worldSettings.resolution) * 2;
+    Vector3[] vertices = new Vector3[verticesPerRow * verticesPerRow * 6];
+    int[] triangles = new int[(trianglesPerRow * trianglesPerRow) * 3];
 
-    for (int z = 0; z < tilesPerBlock; z++)
+    for (int z = 0; z < verticesPerRow - 1; z++)
     {
-      for (int x = 0; x < tilesPerBlock; x++)
+      for (int x = 0; x < verticesPerRow - 1; x++)
       {
-        int i = x + z * (tilesPerBlock);
+        int i = x + z * (verticesPerRow);
+        double realX = (double)x / worldSettings.resolution;
+        double realZ = (double)z / worldSettings.resolution;
+        double offset = 1.0 / worldSettings.resolution;
 
-        vertices[i * 6] = GetCoordinate(x, z, tiles, size, origin, tilesPerBlock);
-        vertices[i * 6 + 1] = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
-        vertices[i * 6 + 2] = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6] = GetCoordinate(realX, realZ, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 1] = GetCoordinate(realX + offset, realZ, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 2] = GetCoordinate(realX, realZ + offset, tiles, size, origin, tilesPerBlock);
 
-        vertices[i * 6 + 3] = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
-        vertices[i * 6 + 4] = GetCoordinate(x + 1, z + 1, tiles, size, origin, tilesPerBlock);
-        vertices[i * 6 + 5] = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 3] = GetCoordinate(realX + offset, realZ, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 4] = GetCoordinate(realX + offset, realZ + offset, tiles, size, origin, tilesPerBlock);
+        vertices[i * 6 + 5] = GetCoordinate(realX, realZ + offset, tiles, size, origin, tilesPerBlock);
 
         triangles[i * 6] = i * 6;
         triangles[i * 6 + 1] = i * 6 + 1;

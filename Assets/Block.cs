@@ -28,21 +28,12 @@ public class Block
     axisB = Vector3.Cross(localUp, axisA);
   }
 
-  public void ConstructMesh()
+  public (Vector3[], int[], Color[]) SmoothShading(int tilesPerBlock, double size, double tiles, double origin)
   {
-    // Converted units
-    double size = (double)this.worldSettings.circumferenceInBlocks;
-    double vertexCount = (double)this.worldSettings.tilesPerBlock + 1;
-    double tiles = (double)this.worldSettings.tilesPerBlock;
-    int tilesPerBlock = this.worldSettings.tilesPerBlock;
-
-    /* Smooth shading
     Vector3[] vertices = new Vector3[(int)((tilesPerBlock + 1) * (tilesPerBlock + 1))];
+    Color[] colors = new Color[vertices.Length];
     int[] triangles = new int[(int)(tilesPerBlock * tilesPerBlock * 6)];
     int triIndex = 0;
-
-    // Start of the block in the ring.
-    double origin = ((double)blockCircumferenceIndex / size) * (Math.PI * 2);
 
     for (int z = 0; z < tilesPerBlock + 1; z++)
     {
@@ -50,6 +41,7 @@ public class Block
       {
         int i = x + z * (tilesPerBlock + 1);
         vertices[i] = GetCoordinate(x, z, tiles, size, origin, tilesPerBlock);
+        colors[i] = new Color(0.3f, 0.3f, 0.3f, 1.0f);
 
         if (x != tilesPerBlock && z != tilesPerBlock)
         {
@@ -63,13 +55,16 @@ public class Block
           triIndex += 6;
         }
       }
-    }*/
+    }
 
-    // Hard shading
+    return (vertices, triangles, colors);
+  }
+
+  public (Vector3[], int[], Color[]) HardShading(int tilesPerBlock, double size, double tiles, double origin)
+  {
     Vector3[] vertices = new Vector3[(tilesPerBlock + 1) * (tilesPerBlock + 1) * 6];
+    Color[] colors = new Color[vertices.Length];
     int[] triangles = new int[(tilesPerBlock * tilesPerBlock) * 6];
-
-    double origin = ((double)blockCircumferenceIndex / size) * (Math.PI * 2);
 
     for (int z = 0; z < tilesPerBlock; z++)
     {
@@ -81,7 +76,6 @@ public class Block
         vertices[i * 6 + 1] = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
         vertices[i * 6 + 2] = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
 
-        
         vertices[i * 6 + 3] = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
         vertices[i * 6 + 4] = GetCoordinate(x + 1, z + 1, tiles, size, origin, tilesPerBlock);
         vertices[i * 6 + 5] = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
@@ -93,54 +87,99 @@ public class Block
         triangles[i * 6 + 3] = i * 6 + 3;
         triangles[i * 6 + 4] = i * 6 + 4;
         triangles[i * 6 + 5] = i * 6 + 5;
-      }
-    }
 
-    mesh.Clear();
-    mesh.vertices = vertices;
-    mesh.triangles = triangles;
-    mesh.RecalculateNormals();
-
-    Vector3[] normals = mesh.normals;
-
-    for (int i = 0; i < mesh.vertices.Length; i+=3) {
-      // Debug.DrawLine(mesh.vertices[i], mesh.vertices[i] + mesh.normals[i]);
-
-      Vector3 middle = (mesh.vertices[i] + mesh.vertices[i + 1] + mesh.vertices[i + 2]) / 3;
-
-      // Debug.DrawLine(middle, middle + mesh.normals[i]);
-      // Debug.DrawLine(middle, middle + mesh.normals[i + 1]);
-      // Debug.DrawLine(middle, middle + mesh.normals[i + 2]);
-    }
-
-    for (int z = 0; z < tilesPerBlock + 1; z++)
-    {
-      for (int x = 0; x < tilesPerBlock + 1; x++)
-      {
-        int i = x + z * (tilesPerBlock + 1);
-        if (x == 0 || x == tilesPerBlock || z == 0 || z == tilesPerBlock)
+        for (int c = 0; c < 6; c++)
         {
-          var up = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
-          var right = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
-          var down = GetCoordinate(x, z - 1, tiles, size, origin, tilesPerBlock);
-          var left = GetCoordinate(x - 1, z, tiles, size, origin, tilesPerBlock);
-
-          var leftUp = GetCoordinate(x - 1, z + 1, tiles, size, origin, tilesPerBlock);
-          var rightDown = GetCoordinate(x + 1, z - 1, tiles, size, origin, tilesPerBlock);
-
-          normals[i] = -(
-            Vector3.Cross(up, right) +
-            Vector3.Cross(right, rightDown) +
-            Vector3.Cross(rightDown, down) +
-            Vector3.Cross(down, left) +
-            Vector3.Cross(left, leftUp) +
-            Vector3.Cross(leftUp, up)
-            ).normalized;
+          colors[i * 6 + c] = new Color(0.3f, 0.3f, 0.3f, 1.0f);
         }
       }
     }
 
-    //mesh.normals = normals;
+    return (vertices, triangles, colors);
+  }
+
+  public void ConstructMesh()
+  {
+    // Converted units
+    double size = (double)this.worldSettings.circumferenceInBlocks;
+    double vertexCount = (double)this.worldSettings.tilesPerBlock + 1;
+    double tiles = (double)this.worldSettings.tilesPerBlock;
+    int tilesPerBlock = this.worldSettings.tilesPerBlock;
+
+    // Start of the block in the ring.
+    double origin = ((double)blockCircumferenceIndex / size) * (Math.PI * 2);
+
+    (Vector3[] vertices, int[] triangles, Color[] colors) =
+      this.worldSettings.smoothShading ?
+        SmoothShading(tilesPerBlock, size, tiles, origin) :
+        HardShading(tilesPerBlock, size, tiles, origin);
+
+
+    mesh.Clear();
+    mesh.vertices = vertices;
+    mesh.triangles = triangles;
+    mesh.colors = colors;
+    mesh.RecalculateNormals();
+
+
+    Vector3[] normals = mesh.normals;
+
+    if (worldSettings.drawNormals)
+    {
+      if (worldSettings.smoothShading)
+      {
+        for (int i = 0; i < mesh.vertices.Length; i++)
+        {
+          Debug.DrawLine(mesh.vertices[i], mesh.vertices[i] + mesh.normals[i]);
+        }
+      }
+      else
+      {
+        for (int i = 0; i < mesh.vertices.Length; i += 3)
+        {
+          Vector3 middle = (mesh.vertices[i] + mesh.vertices[i + 1] + mesh.vertices[i + 2]) / 3;
+
+          Debug.DrawLine(middle, middle + mesh.normals[i]);
+        }
+      }
+    }
+
+    if (worldSettings.fixMeshEdges)
+    {
+      for (int z = 0; z < tilesPerBlock + 1; z++)
+      {
+        for (int x = 0; x < tilesPerBlock + 1; x++)
+        {
+          int i = x + z * (tilesPerBlock + 1);
+          //if (x == 0 || x == tilesPerBlock || z == 0 || z == tilesPerBlock)
+          {
+            var point = GetCoordinate(x, z, tiles, size, origin, tilesPerBlock);
+            var up = GetCoordinate(x, z + 1, tiles, size, origin, tilesPerBlock);
+            var right = GetCoordinate(x + 1, z, tiles, size, origin, tilesPerBlock);
+            var down = GetCoordinate(x, z - 1, tiles, size, origin, tilesPerBlock);
+            var left = GetCoordinate(x - 1, z, tiles, size, origin, tilesPerBlock);
+
+            var leftUp = GetCoordinate(x - 1, z + 1, tiles, size, origin, tilesPerBlock);
+            var rightDown = GetCoordinate(x + 1, z - 1, tiles, size, origin, tilesPerBlock);
+
+            normals[i] = -(
+              Vector3.Cross(up - point, right - point) +
+              Vector3.Cross(right - point, rightDown - point) +
+              Vector3.Cross(rightDown - point, down - point) +
+              Vector3.Cross(down - point, left - point) +
+              Vector3.Cross(left - point, leftUp - point) +
+              Vector3.Cross(leftUp - point, up - point)
+              ).normalized;
+          }
+        }
+      }
+
+      mesh.normals = normals;
+
+    }
+
+    mesh.RecalculateBounds();
+    mesh.RecalculateTangents();
   }
 
   private Vector3 GetCoordinate(int x, int z, double tiles, double size, double origin, int tilesPerBlock)

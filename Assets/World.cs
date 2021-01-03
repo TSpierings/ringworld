@@ -39,6 +39,11 @@ public class World : MonoBehaviour
 
   private void CreateBlocks()
   {
+    if (noiseSettingsEditor == null)
+    {
+      noiseSettingsEditor = new NoiseSettingsEditor();
+    }
+
     if (blockObjects == null && this.worldSettings.circumferenceInBlocks > 0)
     {
       blockObjects = new GameObject[this.worldSettings.circumferenceInBlocks * this.worldSettings.widthInBlocks];
@@ -82,7 +87,7 @@ public class World : MonoBehaviour
 
         if (blockObjects[index] == null)
         {
-          GameObject meshObj = new GameObject("mesh");
+          GameObject meshObj = new GameObject($"mesh{index}");
           blockObjects[index] = meshObj;
 
           meshObj.transform.SetParent(transform);

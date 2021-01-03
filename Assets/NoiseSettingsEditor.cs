@@ -12,6 +12,7 @@ public class NoiseSettingsEditor : ScriptableObject
     if (noiseSettings == null)
     {
       noiseSettings = new NoiseSettings[1];
+      noiseSettings[0] = new NoiseSettings();
     }
   }
 

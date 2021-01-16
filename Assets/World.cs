@@ -11,6 +11,8 @@ public class World : MonoBehaviour
   [SerializeField, HideInInspector]
   GameObject[] blockObjects;
 
+  public Material groundMaterial;
+
   [HideInInspector]
   public bool noiseSettingsFoldout;
 
@@ -39,6 +41,11 @@ public class World : MonoBehaviour
 
   private void CreateBlocks()
   {
+    if (noiseSettingsEditor == null)
+    {
+      noiseSettingsEditor = new NoiseSettingsEditor();
+    }
+
     if (blockObjects == null && this.worldSettings.circumferenceInBlocks > 0)
     {
       blockObjects = new GameObject[this.worldSettings.circumferenceInBlocks * this.worldSettings.widthInBlocks];
@@ -82,13 +89,15 @@ public class World : MonoBehaviour
 
         if (blockObjects[index] == null)
         {
-          GameObject meshObj = new GameObject("mesh");
+          GameObject meshObj = new GameObject($"mesh{index}");
           blockObjects[index] = meshObj;
 
           meshObj.transform.SetParent(transform);
-          meshObj.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("Standard"));
+          meshObj.AddComponent<MeshRenderer>().sharedMaterial = groundMaterial;
           MeshFilter meshFilter = meshObj.AddComponent<MeshFilter>();
           meshFilter.sharedMesh = new Mesh();
+
+          meshObj.AddComponent<MeshCollider>();
         }
 
         blocks[index] = new Block(blockObjects[index].GetComponent<MeshFilter>().sharedMesh, circumferenceIndex, widthIndex, r, this.worldSettings, this.noiseSettingsEditor);

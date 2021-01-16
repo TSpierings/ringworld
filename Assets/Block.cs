@@ -29,7 +29,7 @@ public class Block
     axisB = Vector3.Cross(localUp, axisA);
   }
 
-  public (Vector3[], int[]) SmoothShading(int tilesPerBlock, double size, double tiles, double origin)
+  public (Vector3[], int[], Vector2[]) SmoothShading(int tilesPerBlock, double size, double tiles, double origin)
   {
     int verticesPerRow = (int)(tilesPerBlock * worldSettings.resolution) + 1;
     int trianglesPerRow = (int)(tilesPerBlock * worldSettings.resolution) * 2;
@@ -37,6 +37,8 @@ public class Block
     int[] triangles = new int[trianglesPerRow * trianglesPerRow * 6];
     int triIndex = 0;
 
+
+    Vector2[] uvs = new Vector2[vertices.Length];
     for (int z = 0; z < verticesPerRow; z++)
     {
       for (int x = 0; x < verticesPerRow; x++)
@@ -60,18 +62,24 @@ public class Block
           triangles[triIndex + 5] = i + verticesPerRow + 1;
           triIndex += 6;
         }
+
+        uvs[i] = new Vector2((float)z / verticesPerRow, (float)x / verticesPerRow);
       }
     }
-
-    return (vertices, triangles);
+    
+    return (vertices, triangles, uvs);
   }
 
-  public (Vector3[], int[]) HardShading(int tilesPerBlock, double size, double tiles, double origin)
+  public (Vector3[], int[], Vector2[]) HardShading(int tilesPerBlock, double size, double tiles, double origin)
   {
     int verticesPerRow = (int)(tilesPerBlock * worldSettings.resolution) + 1;
     int trianglesPerRow = (int)(tilesPerBlock * worldSettings.resolution) * 2;
     Vector3[] vertices = new Vector3[verticesPerRow * verticesPerRow * 6];
     int[] triangles = new int[(trianglesPerRow * trianglesPerRow) * 3];
+
+
+    Vector2[] uvs = new Vector2[vertices.Length];
+
 
     for (int z = 0; z < verticesPerRow - 1; z++)
     {
@@ -97,10 +105,12 @@ public class Block
         triangles[i * 6 + 3] = i * 6 + 3;
         triangles[i * 6 + 4] = i * 6 + 4;
         triangles[i * 6 + 5] = i * 6 + 5;
+
+        uvs[i] = new Vector2((float)z / verticesPerRow, (float)x / verticesPerRow);
       }
     }
-
-    return (vertices, triangles);
+    
+    return (vertices, triangles, uvs);
   }
 
   public void ConstructMesh()
@@ -114,15 +124,15 @@ public class Block
     // Start of the block in the ring.
     double origin = ((double)blockCircumferenceIndex / size) * (Math.PI * 2);
 
-    (Vector3[] vertices, int[] triangles) =
+    (Vector3[] vertices, int[] triangles, Vector2[] uvs) =
       this.worldSettings.smoothShading ?
         SmoothShading(tilesPerBlock, size, tiles, origin) :
         HardShading(tilesPerBlock, size, tiles, origin);
 
-
     mesh.Clear();
     mesh.vertices = vertices;
     mesh.triangles = triangles;
+    mesh.uv = uvs;
     mesh.RecalculateNormals();
 
     Vector3[] normals = mesh.normals;

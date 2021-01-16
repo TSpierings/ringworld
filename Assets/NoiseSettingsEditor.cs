@@ -7,6 +7,15 @@ public class NoiseSettingsEditor : ScriptableObject
 {
   public NoiseSettings[] noiseSettings;
 
+  public NoiseSettingsEditor()
+  {
+    if (noiseSettings == null)
+    {
+      noiseSettings = new NoiseSettings[1];
+      noiseSettings[0] = new NoiseSettings();
+    }
+  }
+
   [System.Serializable]
   public class NoiseSettings
   {
@@ -32,7 +41,7 @@ public class NoiseSettingsEditor : ScriptableObject
 
     public double getValue(Vector3 point)
     {
-      return (1 +  .5 * noise.Evaluate(point * (float)noiseScale)) * weight;
+      return (1 + .5 * noise.Evaluate(point * (float)noiseScale)) * weight;
     }
   }
 }

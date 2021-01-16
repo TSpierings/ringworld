@@ -37,8 +37,8 @@ public class Block
     int[] triangles = new int[trianglesPerRow * trianglesPerRow * 6];
     int triIndex = 0;
 
-    Vector2[] uvs = new Vector2[vertices.Length];
 
+    Vector2[] uvs = new Vector2[vertices.Length];
     for (int z = 0; z < verticesPerRow; z++)
     {
       for (int x = 0; x < verticesPerRow; x++)
@@ -66,7 +66,7 @@ public class Block
         uvs[i] = new Vector2((float)z / verticesPerRow, (float)x / verticesPerRow);
       }
     }
-
+    
     return (vertices, triangles, uvs);
   }
 
@@ -77,7 +77,9 @@ public class Block
     Vector3[] vertices = new Vector3[verticesPerRow * verticesPerRow * 6];
     int[] triangles = new int[(trianglesPerRow * trianglesPerRow) * 3];
 
+
     Vector2[] uvs = new Vector2[vertices.Length];
+
 
     for (int z = 0; z < verticesPerRow - 1; z++)
     {
@@ -107,7 +109,7 @@ public class Block
         uvs[i] = new Vector2((float)z / verticesPerRow, (float)x / verticesPerRow);
       }
     }
-
+    
     return (vertices, triangles, uvs);
   }
 
@@ -126,7 +128,6 @@ public class Block
       this.worldSettings.smoothShading ?
         SmoothShading(tilesPerBlock, size, tiles, origin) :
         HardShading(tilesPerBlock, size, tiles, origin);
-
 
     mesh.Clear();
     mesh.vertices = vertices;

@@ -15,8 +15,9 @@ public class Block
   double r;
   NoiseSettingsEditor noiseSettingsEditor;
   WorldSettings worldSettings;
+  int resolution;
 
-  public Block(Mesh mesh, int blockCircumferenceIndex, int blockWidthIndex, double r, WorldSettings worldSettings, NoiseSettingsEditor noiseSettingsEditor)
+  public Block(Mesh mesh, int blockCircumferenceIndex, int blockWidthIndex, double r, WorldSettings worldSettings, NoiseSettingsEditor noiseSettingsEditor, int playerDistance)
   {
     this.mesh = mesh;
     this.blockCircumferenceIndex = blockCircumferenceIndex;
@@ -24,6 +25,7 @@ public class Block
     this.r = r;
     this.worldSettings = worldSettings;
     this.noiseSettingsEditor = noiseSettingsEditor;
+    this.resolution = playerDistance;
 
     axisA = new Vector3(localUp.y, localUp.z, localUp.x);
     axisB = Vector3.Cross(localUp, axisA);
@@ -31,12 +33,11 @@ public class Block
 
   public (Vector3[], int[], Vector2[]) SmoothShading(int tilesPerBlock, double size, double tiles, double origin)
   {
-    int verticesPerRow = (int)(tilesPerBlock * worldSettings.resolution) + 1;
-    int trianglesPerRow = (int)(tilesPerBlock * worldSettings.resolution) * 2;
+    int verticesPerRow = (int)(tilesPerBlock) + 1;
+    int trianglesPerRow = (int)(tilesPerBlock) * 2;
     Vector3[] vertices = new Vector3[verticesPerRow * verticesPerRow];
     int[] triangles = new int[trianglesPerRow * trianglesPerRow * 6];
     int triIndex = 0;
-
 
     Vector2[] uvs = new Vector2[vertices.Length];
     for (int z = 0; z < verticesPerRow; z++)
@@ -45,8 +46,8 @@ public class Block
       {
         int i = x + z * verticesPerRow;
         vertices[i] = GetCoordinate(
-          (double)x / worldSettings.resolution,
-          (double)z / worldSettings.resolution,
+          (double)x,
+          (double)z,
           tiles,
           size,
           origin, tilesPerBlock);
@@ -66,14 +67,14 @@ public class Block
         uvs[i] = new Vector2((float)z / verticesPerRow, (float)x / verticesPerRow);
       }
     }
-    
+
     return (vertices, triangles, uvs);
   }
 
   public (Vector3[], int[], Vector2[]) HardShading(int tilesPerBlock, double size, double tiles, double origin)
   {
-    int verticesPerRow = (int)(tilesPerBlock * worldSettings.resolution) + 1;
-    int trianglesPerRow = (int)(tilesPerBlock * worldSettings.resolution) * 2;
+    int verticesPerRow = (int)(tilesPerBlock * resolution) + 1;
+    int trianglesPerRow = (int)(tilesPerBlock * resolution) * 2;
     Vector3[] vertices = new Vector3[verticesPerRow * verticesPerRow * 6];
     int[] triangles = new int[(trianglesPerRow * trianglesPerRow) * 3];
 
@@ -86,9 +87,9 @@ public class Block
       for (int x = 0; x < verticesPerRow - 1; x++)
       {
         int i = x + z * (verticesPerRow);
-        double realX = (double)x / worldSettings.resolution;
-        double realZ = (double)z / worldSettings.resolution;
-        double offset = 1.0 / worldSettings.resolution;
+        double realX = (double)x / resolution;
+        double realZ = (double)z / resolution;
+        double offset = 1.0 / resolution;
 
         vertices[i * 6] = GetCoordinate(realX, realZ, tiles, size, origin, tilesPerBlock);
         vertices[i * 6 + 1] = GetCoordinate(realX + offset, realZ, tiles, size, origin, tilesPerBlock);
@@ -109,25 +110,26 @@ public class Block
         uvs[i] = new Vector2((float)z / verticesPerRow, (float)x / verticesPerRow);
       }
     }
-    
+
     return (vertices, triangles, uvs);
   }
 
   public void ConstructMesh()
   {
+    var adjustedTilesPerBlock = Math.Max(1, this.worldSettings.tilesPerBlock / Math.Pow(2, this.resolution));
+
     // Converted units
     double size = (double)this.worldSettings.circumferenceInBlocks;
-    double vertexCount = (double)this.worldSettings.tilesPerBlock + 1;
-    double tiles = (double)this.worldSettings.tilesPerBlock;
-    int tilesPerBlock = this.worldSettings.tilesPerBlock;
+    double vertexCount = (double)adjustedTilesPerBlock + 1;
+    int tilesPerBlock = (int)adjustedTilesPerBlock;
 
     // Start of the block in the ring.
     double origin = ((double)blockCircumferenceIndex / size) * (Math.PI * 2);
 
     (Vector3[] vertices, int[] triangles, Vector2[] uvs) =
       this.worldSettings.smoothShading ?
-        SmoothShading(tilesPerBlock, size, tiles, origin) :
-        HardShading(tilesPerBlock, size, tiles, origin);
+        SmoothShading(tilesPerBlock, size, adjustedTilesPerBlock, origin) :
+        HardShading(tilesPerBlock, size, adjustedTilesPerBlock, origin);
 
     mesh.Clear();
     mesh.vertices = vertices;
@@ -137,42 +139,22 @@ public class Block
 
     Vector3[] normals = mesh.normals;
 
-    if (worldSettings.drawNormals)
-    {
-      if (worldSettings.smoothShading)
-      {
-        for (int i = 0; i < mesh.vertices.Length; i++)
-        {
-          Debug.DrawLine(mesh.vertices[i], mesh.vertices[i] + mesh.normals[i]);
-        }
-      }
-      else
-      {
-        for (int i = 0; i < mesh.vertices.Length; i += 3)
-        {
-          Vector3 middle = (mesh.vertices[i] + mesh.vertices[i + 1] + mesh.vertices[i + 2]) / 3;
-
-          Debug.DrawLine(middle, middle + mesh.normals[i]);
-        }
-      }
-    }
-
     if (worldSettings.fixMeshEdges)
     {
-      for (int z = 0; z < tilesPerBlock * worldSettings.resolution + 1; z++)
+      for (int z = 0; z < tilesPerBlock + 1; z++)
       {
-        for (int x = 0; x < tilesPerBlock * worldSettings.resolution + 1; x++)
+        for (int x = 0; x < tilesPerBlock + 1; x++)
         {
-          int i = x + z * (int)(tilesPerBlock * worldSettings.resolution + 1);
-          if (x == 0 || x == tilesPerBlock * worldSettings.resolution || z == 0 || z == tilesPerBlock * worldSettings.resolution)
+          int i = x + z * (int)(tilesPerBlock + 1);
+          if (x == 0 || x == tilesPerBlock || z == 0 || z == tilesPerBlock)
           {
-            double resX = (double)x / worldSettings.resolution;
-            double resZ = (double)z / worldSettings.resolution;
-            double offset = 1.0 / worldSettings.resolution;
-            var up = GetCoordinate(resX, resZ + offset, tiles, size, origin, tilesPerBlock);
-            var right = GetCoordinate(resX + offset, resZ, tiles, size, origin, tilesPerBlock);
-            var down = GetCoordinate(resX, resZ - offset, tiles, size, origin, tilesPerBlock);
-            var left = GetCoordinate(resX - offset, resZ, tiles, size, origin, tilesPerBlock);
+            double resX = (double)x;
+            double resZ = (double)z;
+            double offset = 1.0;
+            var up = GetCoordinate(resX, resZ + offset, adjustedTilesPerBlock, size, origin, tilesPerBlock);
+            var right = GetCoordinate(resX + offset, resZ, adjustedTilesPerBlock, size, origin, tilesPerBlock);
+            var down = GetCoordinate(resX, resZ - offset, adjustedTilesPerBlock, size, origin, tilesPerBlock);
+            var left = GetCoordinate(resX - offset, resZ, adjustedTilesPerBlock, size, origin, tilesPerBlock);
 
             normals[i] = -(
               Vector3.Cross(up, right) +
@@ -180,18 +162,6 @@ public class Block
               Vector3.Cross(down, left) +
               Vector3.Cross(left, up)
               ).normalized;
-
-            //var leftUp = GetCoordinate(x - 1.0 / worldSettings.resolution, z + 1.0 / worldSettings.resolution, tiles, size, origin, tilesPerBlock);
-            //var rightDown = GetCoordinate(x + 1.0 / worldSettings.resolution, z - 1.0 / worldSettings.resolution, tiles, size, origin, tilesPerBlock);
-
-            /*normals[i] = -(
-              Vector3.Cross(up, right) +
-              Vector3.Cross(right, rightDown) +
-              Vector3.Cross(rightDown, down) +
-              Vector3.Cross(down, left) +
-              Vector3.Cross(left, leftUp) +
-              Vector3.Cross(leftUp, up)
-              ).normalized;*/
           }
         }
       }
@@ -212,10 +182,12 @@ public class Block
       (float)Math.Sin(radians)
     );
 
+    var adjustor = this.worldSettings.tilesPerBlock / tilesPerBlock;
+
     Vector3 pointInSpace = new Vector3(
       (float)(pointInRing.x * this.r),
       (float)(pointInRing.y * this.r),
-      (float)(z + this.blockWidthIndex * tilesPerBlock));
+      (float)((z * adjustor) + this.blockWidthIndex * this.worldSettings.tilesPerBlock));
 
 
 
@@ -259,6 +231,6 @@ public class Block
     float originX = (float)((this.r - height) * Math.Cos(radians));
     float originY = (float)((this.r - height) * Math.Sin(radians));
 
-    return -new Vector3(originX, originY, (float)z + this.blockWidthIndex * tilesPerBlock);
+    return -new Vector3(originX, originY, (float)(z * adjustor) + this.blockWidthIndex * this.worldSettings.tilesPerBlock);
   }
 }

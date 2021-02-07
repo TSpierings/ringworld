@@ -18,6 +18,10 @@ public class World : MonoBehaviour
 
   private bool validated = false;
 
+  public GameObject player;
+
+  private Vector2 lastPlayerIndex = new Vector2(0, 0);
+
   private void OnValidate()
   {
     validated = true;
@@ -25,9 +29,12 @@ public class World : MonoBehaviour
 
   void Update()
   {
-    if (validated)
+    var playerIndex = GetRingworldCoordinates(player.transform);
+
+    if (validated || playerIndex != lastPlayerIndex)
     {
       validated = false;
+      lastPlayerIndex = playerIndex;
       CreateWorld();
     }
   }
@@ -81,6 +88,8 @@ public class World : MonoBehaviour
 
     double r = (this.worldSettings.circumferenceInBlocks * this.worldSettings.tilesPerBlock) / (Math.PI * 2);
 
+    var playerCoord = GetRingworldCoordinates(player.transform);
+
     for (int circumferenceIndex = 0; circumferenceIndex < this.worldSettings.circumferenceInBlocks; circumferenceIndex++)
     {
       for (int widthIndex = 0; widthIndex < this.worldSettings.widthInBlocks; widthIndex++)
@@ -100,9 +109,41 @@ public class World : MonoBehaviour
           meshObj.AddComponent<MeshCollider>();
         }
 
-        blocks[index] = new Block(blockObjects[index].GetComponent<MeshFilter>().sharedMesh, circumferenceIndex, widthIndex, r, this.worldSettings, this.noiseSettingsEditor);
+        var realCircDistance = Math.Abs(circumferenceIndex - playerCoord.x);
+        var altCirclDistance = Math.Abs(circumferenceIndex - (playerCoord.x + this.worldSettings.circumferenceInBlocks));
+        var altaltCirclDistance = Math.Abs(circumferenceIndex - (playerCoord.x - this.worldSettings.circumferenceInBlocks));
+
+        var relativeWidthIndex = widthIndex;
+        var playerOffset = Math.Max(
+          Math.Min(realCircDistance, Math.Min(altCirclDistance, altaltCirclDistance)),
+          Math.Abs(0));
+
+        Debug.Log($"({playerCoord.x} {playerCoord.y}), ({Math.Min(realCircDistance, altCirclDistance)},{relativeWidthIndex}), {playerOffset}");
+
+        blocks[index] = new Block(
+          blockObjects[index].GetComponent<MeshFilter>().sharedMesh,
+          circumferenceIndex,
+          widthIndex,
+          r,
+          this.worldSettings,
+          this.noiseSettingsEditor,
+          (int)playerOffset);
       }
     }
+  }
+
+  private Vector2 GetRingworldCoordinates(Transform transform)
+  {
+    var position = transform.position;
+    var radians = Math.Atan2(position.y, position.x) + Math.PI;
+    var step = (Math.PI * 2) / this.worldSettings.circumferenceInBlocks;
+    var circIndex = Math.Floor(radians / step);
+
+    var widthIndex = Math.Floor(position.z / (this.worldSettings.tilesPerBlock));
+
+    //Debug.Log($"rads: {radians / (2 * Math.PI)} ({circIndex})");
+
+    return new Vector2((float)circIndex, -(float)widthIndex);
   }
 
   private void GenerateMesh()

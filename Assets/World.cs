@@ -109,16 +109,7 @@ public class World : MonoBehaviour
           meshObj.AddComponent<MeshCollider>();
         }
 
-        var realCircDistance = Math.Abs(circumferenceIndex - playerCoord.x);
-        var altCirclDistance = Math.Abs(circumferenceIndex - (playerCoord.x + this.worldSettings.circumferenceInBlocks));
-        var altaltCirclDistance = Math.Abs(circumferenceIndex - (playerCoord.x - this.worldSettings.circumferenceInBlocks));
-
-        var relativeWidthIndex = widthIndex;
-        var playerOffset = Math.Max(
-          Math.Min(realCircDistance, Math.Min(altCirclDistance, altaltCirclDistance)),
-          Math.Abs(0));
-
-        Debug.Log($"({playerCoord.x} {playerCoord.y}), ({Math.Min(realCircDistance, altCirclDistance)},{relativeWidthIndex}), {playerOffset}");
+        //Debug.Log($"({playerCoord.x} {playerCoord.y}), ({Math.Min(realCircDistance, altCirclDistance)},{relativeWidthIndex}), {playerOffset}");
 
         blocks[index] = new Block(
           blockObjects[index].GetComponent<MeshFilter>().sharedMesh,
@@ -127,7 +118,7 @@ public class World : MonoBehaviour
           r,
           this.worldSettings,
           this.noiseSettingsEditor,
-          (int)playerOffset);
+          playerCoord, new Vector2(circumferenceIndex, widthIndex));
       }
     }
   }

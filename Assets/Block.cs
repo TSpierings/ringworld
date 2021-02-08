@@ -16,8 +16,10 @@ public class Block
   NoiseSettingsEditor noiseSettingsEditor;
   WorldSettings worldSettings;
   int resolution;
+  Vector2 playerIndex;
+  Vector2 blockIndex;
 
-  public Block(Mesh mesh, int blockCircumferenceIndex, int blockWidthIndex, double r, WorldSettings worldSettings, NoiseSettingsEditor noiseSettingsEditor, int playerDistance)
+  public Block(Mesh mesh, int blockCircumferenceIndex, int blockWidthIndex, double r, WorldSettings worldSettings, NoiseSettingsEditor noiseSettingsEditor, Vector2 playerIndex, Vector2 blockIndex)
   {
     this.mesh = mesh;
     this.blockCircumferenceIndex = blockCircumferenceIndex;
@@ -25,10 +27,26 @@ public class Block
     this.r = r;
     this.worldSettings = worldSettings;
     this.noiseSettingsEditor = noiseSettingsEditor;
-    this.resolution = playerDistance;
+    this.playerIndex = playerIndex;
+    this.blockIndex = blockIndex;
+    this.resolution = VectorDistance(playerIndex, blockIndex);
 
     axisA = new Vector3(localUp.y, localUp.z, localUp.x);
     axisB = Vector3.Cross(localUp, axisA);
+  }
+
+  private int VectorDistance(Vector2 player, Vector2 block)
+  {
+    var realCircDistance = Math.Abs(block.x - player.x);
+    var altCirclDistance = Math.Abs(block.x - (player.x + this.worldSettings.circumferenceInBlocks));
+    var altaltCirclDistance = Math.Abs(block.x - (player.x - this.worldSettings.circumferenceInBlocks));
+
+    var relativeWidthIndex = block.y + 1;
+    var playerOffset = Math.Max(Math.Max(
+      Math.Min(realCircDistance, Math.Min(altCirclDistance, altaltCirclDistance)),
+      Math.Abs(relativeWidthIndex - player.y)) - 1, 0);
+
+    return (int)playerOffset;
   }
 
   public (Vector3[], int[], Vector2[]) SmoothShading(int tilesPerBlock, double size, double tiles, double origin)
@@ -131,44 +149,111 @@ public class Block
         SmoothShading(tilesPerBlock, size, adjustedTilesPerBlock, origin) :
         HardShading(tilesPerBlock, size, adjustedTilesPerBlock, origin);
 
+    if (worldSettings.fixMeshEdgeVertices)
+    {
+      vertices = FixVertices(vertices, adjustedTilesPerBlock);
+    }
+
     mesh.Clear();
     mesh.vertices = vertices;
     mesh.triangles = triangles;
     mesh.uv = uvs;
     mesh.RecalculateNormals();
 
-    Vector3[] normals = mesh.normals;
-
-    if (worldSettings.fixMeshEdges)
+    if (worldSettings.fixMeshEdgeNormals)
     {
-      for (int z = 0; z < tilesPerBlock + 1; z++)
-      {
-        for (int x = 0; x < tilesPerBlock + 1; x++)
-        {
-          int i = x + z * (int)(tilesPerBlock + 1);
-          if (x == 0 || x == tilesPerBlock || z == 0 || z == tilesPerBlock)
-          {
-            double resX = (double)x;
-            double resZ = (double)z;
-            double offset = 1.0;
-            var up = GetCoordinate(resX, resZ + offset, adjustedTilesPerBlock, size, origin, tilesPerBlock);
-            var right = GetCoordinate(resX + offset, resZ, adjustedTilesPerBlock, size, origin, tilesPerBlock);
-            var down = GetCoordinate(resX, resZ - offset, adjustedTilesPerBlock, size, origin, tilesPerBlock);
-            var left = GetCoordinate(resX - offset, resZ, adjustedTilesPerBlock, size, origin, tilesPerBlock);
+      Vector3[] normals = mesh.normals;
+      mesh.normals = FixNormals(normals, tilesPerBlock, adjustedTilesPerBlock, size, origin);
+    }
+  }
 
-            normals[i] = -(
-              Vector3.Cross(up, right) +
-              Vector3.Cross(right, down) +
-              Vector3.Cross(down, left) +
-              Vector3.Cross(left, up)
-              ).normalized;
-          }
+  private Vector3[] FixVertices(Vector3[] vertices, double adjustedTilesPerBlock)
+  {
+    if (VectorDistance(playerIndex, new Vector2(blockIndex.x - 1, blockIndex.y)) == resolution + 1)
+    {
+      for (int z = 1; z < (int)adjustedTilesPerBlock; z += 2)
+      {
+        int vertexIndex = z * ((int)adjustedTilesPerBlock + 1);
+        int leftIndex = (z - 1) * ((int)adjustedTilesPerBlock + 1);
+        int rightIndex = (z + 1) * ((int)adjustedTilesPerBlock + 1);
+
+        vertices[vertexIndex] = GetPointBetweenVectors(vertices[leftIndex], vertices[rightIndex]);
+      }
+    }
+    if (VectorDistance(playerIndex, new Vector2(blockIndex.x + 1, blockIndex.y)) == resolution + 1)
+    {
+      for (int z = 1; z < (int)adjustedTilesPerBlock; z += 2)
+      {
+        int vertexIndex = (int)adjustedTilesPerBlock + z * ((int)adjustedTilesPerBlock + 1);
+        int leftIndex = (int)adjustedTilesPerBlock + (z - 1) * ((int)adjustedTilesPerBlock + 1);
+        int rightIndex = (int)adjustedTilesPerBlock + (z + 1) * ((int)adjustedTilesPerBlock + 1);
+
+        vertices[vertexIndex] = GetPointBetweenVectors(vertices[leftIndex], vertices[rightIndex]);
+      }
+    }
+
+    if (VectorDistance(playerIndex, new Vector2(blockIndex.x, blockIndex.y - 1)) == resolution + 1)
+    {
+      for (int x = 1; x < (int)adjustedTilesPerBlock; x += 2)
+      {
+        int vertexIndex = x;
+        int leftIndex = (x - 1);
+        int rightIndex = (x + 1);
+
+        vertices[vertexIndex] = GetPointBetweenVectors(vertices[leftIndex], vertices[rightIndex]);
+      }
+    }
+
+    if (VectorDistance(playerIndex, new Vector2(blockIndex.x, blockIndex.y + 1)) == resolution + 1)
+    {
+      for (int x = 1; x < (int)adjustedTilesPerBlock; x += 2)
+      {
+        int vertexIndex = x + ((int)adjustedTilesPerBlock + 1) * (int)adjustedTilesPerBlock;
+        int leftIndex = (x - 1) + ((int)adjustedTilesPerBlock + 1) * (int)adjustedTilesPerBlock;
+        int rightIndex = (x + 1) + ((int)adjustedTilesPerBlock + 1) * (int)adjustedTilesPerBlock;
+
+        vertices[vertexIndex] = GetPointBetweenVectors(vertices[leftIndex], vertices[rightIndex]);
+      }
+    }
+
+    return vertices;
+  }
+
+  private Vector3 GetPointBetweenVectors(Vector3 left, Vector3 right)
+  {
+    return new Vector3(
+      (left.x + right.x) / 2.0f,
+      (left.y + right.y) / 2.0f,
+      (left.z + right.z) / 2.0f);
+  }
+
+  private Vector3[] FixNormals(Vector3[] normals, int tilesPerBlock, double adjustedTilesPerBlock, double size, double origin)
+  {
+    for (int z = 0; z < tilesPerBlock + 1; z++)
+    {
+      for (int x = 0; x < tilesPerBlock + 1; x++)
+      {
+        int i = x + z * (int)(tilesPerBlock + 1);
+        if (x == 0 || x == tilesPerBlock || z == 0 || z == tilesPerBlock)
+        {
+          double resX = (double)x;
+          double resZ = (double)z;
+          double offset = 1.0;
+          var up = GetCoordinate(resX, resZ + offset, adjustedTilesPerBlock, size, origin, tilesPerBlock);
+          var right = GetCoordinate(resX + offset, resZ, adjustedTilesPerBlock, size, origin, tilesPerBlock);
+          var down = GetCoordinate(resX, resZ - offset, adjustedTilesPerBlock, size, origin, tilesPerBlock);
+          var left = GetCoordinate(resX - offset, resZ, adjustedTilesPerBlock, size, origin, tilesPerBlock);
+
+          normals[i] = -(
+            Vector3.Cross(up, right) +
+            Vector3.Cross(right, down) +
+            Vector3.Cross(down, left) +
+            Vector3.Cross(left, up)
+            ).normalized;
         }
       }
-
-      mesh.normals = normals;
-
     }
+    return normals;
   }
 
   private Vector3 GetCoordinate(double x, double z, double tiles, double size, double origin, int tilesPerBlock)

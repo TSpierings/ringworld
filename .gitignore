@@ -72,3 +72,4 @@ crashlytics-build.properties
 /Assets/Ground textures pack/
 /Assets/Ground textures pack.meta
 /Assets/Scenes/*.unity
+/ProjectSettings/*.asset
